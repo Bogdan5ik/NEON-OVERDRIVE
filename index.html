@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Overdrive — Играть онлайн в киберпанк арена-шутер</title>
+    <link rel="stylesheet" href="style.css">
+    <meta name="description" content="Динамичный неоновый киберпанк арена-шутер с прокачкой модулей, боссами и мобильным управлением. Играйте бесплатно в браузере!">
+    <meta name="keywords" content="Neon Overdrive, киберпанк игра, браузерный шутер, играть онлайн">
+</head>
+<body>
+
+    <div class="vignette"></div>
+    <div class="scanlines"></div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">
+        <div class="hud-top">
+            <div class="hud-top-left cyber-clip-sm">
+                <div class="hud-bar-row">
+                    <div class="hud-bar-header">
+                        <span style="color: var(--neon-pink);">КОРПУС [HP]</span>
+                        <span id="hpText">100 / 100</span>
+                    </div>
+                    <div class="bar-track">
+                        <div class="bar-fill" id="hpFill"></div>
+                        <div id="hpDamageFlash"></div>
+                    </div>
+                </div>
+                <div class="hud-bar-row">
+                    <div class="hud-bar-header">
+                        <span style="color: var(--neon-cyan);" id="lvlText">УРОВЕНЬ 1</span>
+                        <span id="xpText" style="color: #94a3b8;">0 / 60 XP</span>
+                    </div>
+                    <div class="bar-track" style="height: 8px;">
+                        <div class="bar-fill" id="xpFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hud-top-center">
+                <div class="wave-panel cyber-clip-sm">
+                    <div class="wave-badge" id="waveBadge">ВОЛНА 1</div>
+                    <div class="timer-badge" id="survivalTimer">00:00</div>
+                </div>
+                <div class="boss-warning cyber-clip-sm" id="bossWarning">⚠ ОБНАРУЖЕН КИБЕР-БОСС ⚠</div>
+            </div>
+
+            <!-- Правый блок: Счет, Комбо, Кнопки Паузы и Звука -->
+            <div class="hud-top-right">
+                <div class="score-panel cyber-clip-sm">
+                    <div class="score-value" id="scoreText">0</div>
+                    <div class="combo-row">
+                        <div class="combo-box" id="comboText">x1.0</div>
+                        <div class="combo-timer-track">
+                            <div class="combo-timer-fill" id="comboTimerFill"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hud-icon-btns">
+                    <button class="hud-btn cyber-clip-sm" id="hudPauseBtn" title="Пауза [ESC]">⏸ ESC</button>
+                    <button class="hud-btn cyber-clip-sm" id="hudSoundBtn" title="Звук">🔊</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Нижняя панель -->
+        <div class="hud-bottom">
+            <!-- Левый нижний блок: Фазовый рывок и класс корабля -->
+            <div class="hud-bottom-left cyber-clip-sm">
+                <div class="hud-bar-header">
+                    <span style="color: var(--neon-cyan);">ФАЗОВЫЙ РЫВОК [SHIFT/ПКМ]</span>
+                    <span id="dashText" style="color: var(--neon-green);">ГОТОВ</span>
+                </div>
+                <div class="bar-track" style="height: 8px; margin-top: 4px;">
+                    <div class="bar-fill" id="dashFill"></div>
+                </div>
+                <div class="ship-badge">
+                    <span id="hudShipName">КОР: ШТУРМОВИК</span>
+                    <span id="hudAutoFire" style="color: var(--neon-yellow);">АВТО-ОГОНЬ: ВЫКЛ</span>
+                </div>
+            </div>
+
+            <!-- Центр снизу: Активные модули -->
+            <div class="hud-modules-bar" id="hudModulesBar"></div>
+
+            <!-- Правый нижний блок: Мини-радар -->
+            <div class="radar-box cyber-clip-sm">
+                <canvas id="radarCanvas" width="112" height="112"></canvas>
+                <div class="radar-label">ТАКТ-РАДАР</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 1. ГЛАВНОЕ МЕНЮ (TITLE SCREEN) ================= -->
+    <div class="overlay-screen" id="startScreen">
+        <div class="panel cyber-clip">
+            <div class="glitch-title">NEON OVERDRIVE</div>
+            <div class="protocol-sub">КИБЕР-АРЕНА // PROTOCOL v2.4</div>
+
+            <div class="section-heading">01 // ВЫБОР КЛАССА БОЕВОГО КОРА</div>
+            <div class="ship-selector" id="shipSelectorContainer"></div>
+
+            <div class="section-heading">02 // ТЕЛЕМЕТРИЯ ОПЕРАТОРА (РЕКОРДЫ)</div>
+            <div class="career-stats">
+                <div class="career-box cyber-clip-sm">
+                    <div class="career-label">ЛУЧШИЙ СЧЁТ</div>
+                    <div class="career-val" id="careerBestScore">0</div>
+                </div>
+                <div class="career-box cyber-clip-sm">
+                    <div class="career-label">МАКС. ВОЛНА</div>
+                    <div class="career-val" id="careerMaxWave" style="color: var(--neon-cyan);">1</div>
+                </div>
+                <div class="career-box cyber-clip-sm">
+                    <div class="career-label">ВСЕГО УНИЧТОЖЕНО</div>
+                    <div class="career-val" id="careerTotalKills" style="color: var(--neon-pink);">0</div>
+                </div>
+            </div>
+
+            <div class="menu-actions">
+                <button class="neon-btn cyber-clip-sm" id="startBtn">▶ НАЧАТЬ ЗАБЕГ</button>
+                <button class="neon-btn secondary cyber-clip-sm" id="openCodexBtn">📚 АРСЕНАЛ И МОДУЛИ</button>
+                <button class="neon-btn secondary cyber-clip-sm" id="openSettingsBtn">⚙ НАСТРОЙКИ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ОКНО: АРСЕНАЛ И МОДУЛИ ================= -->
+    <div class="overlay-screen hidden" id="codexScreen">
+        <div class="panel cyber-clip">
+            <div class="glitch-title" style="font-size: 30px;">БАЗА ДАННЫХ АРЕНЫ</div>
+            <div class="protocol-sub" style="margin-bottom: 14px;">СПРАВОЧНИК МОДУЛЕЙ И ПРОТИВНИКОВ</div>
+
+            <div class="tabs-header">
+                <button class="tab-btn active cyber-clip-sm" id="tabModulesBtn">КИБЕР-МОДУЛИ (11)</button>
+                <button class="tab-btn cyber-clip-sm" id="tabEnemiesBtn">УГРОЗЫ АРЕНЫ (5)</button>
+            </div>
+
+            <div class="codex-grid" id="codexGrid"></div>
+
+            <button class="neon-btn secondary cyber-clip-sm" id="closeCodexBtn">← НАЗАД В МЕНЮ</button>
+        </div>
+    </div>
+
+    <!-- ================= ОКНО: НАСТРОЙКИ ================= -->
+    <div class="overlay-screen hidden" id="settingsScreen">
+        <div class="panel cyber-clip" style="max-width: 620px;">
+            <div class="glitch-title" style="font-size: 30px;">СИСТЕМНЫЕ НАСТРОЙКИ</div>
+            <div class="protocol-sub" style="margin-bottom: 18px;">КОНФИГУРАЦИЯ ИНТЕРФЕЙСА И СЕНСОРОВ</div>
+
+            <div class="settings-list">
+                <div class="setting-row cyber-clip-sm">
+                    <label for="sfxVolumeSlider">ГРОМКОСТЬ ЗВУКА (SFX): <span id="sfxVolumeVal" style="color: var(--neon-cyan);">100%</span></label>
+                    <input type="range" id="sfxVolumeSlider" min="0" max="100" value="100">
+                </div>
+                <div class="setting-row cyber-clip-sm">
+                    <label for="shakeIntensitySlider">ТРЯСКА ЭКРАНА: <span id="shakeIntensityVal" style="color: var(--neon-cyan);">100%</span></label>
+                    <input type="range" id="shakeIntensitySlider" min="0" max="150" value="100">
+                </div>
+                <div class="setting-row cyber-clip-sm">
+                    <label>АВТО-СТРЕЛЬБА (БЕЗ ЗАЖАТИЯ ЛКМ)</label>
+                    <button class="toggle-btn off cyber-clip-sm" id="autoFireToggle">ВЫКЛ</button>
+                </div>
+                <div class="setting-row cyber-clip-sm">
+                    <label>ВСПЛЫВАЮЩИЕ ЦИФРЫ УРОНА</label>
+                    <button class="toggle-btn cyber-clip-sm" id="damageNumbersToggle">ВКЛ</button>
+                </div>
+            </div>
+
+            <button class="neon-btn cyber-clip-sm" id="closeSettingsBtn">СОХРАНИТЬ И ВЕРНУТЬСЯ</button>
+        </div>
+    </div>
+
+    <!-- ================= 3. ДЕТАЛЬНОЕ МЕНЮ ПАУЗЫ (ESC) ================= -->
+    <div class="overlay-screen hidden" id="pauseScreen">
+        <div class="panel pause-panel cyber-clip">
+            <div class="pause-header">
+                <div>
+                    <div class="pause-title">СИСТЕМА НА ПАУЗЕ</div>
+                    <div style="font-family: var(--font-mono); font-size: 12px; color: #94a3b8;">ТАКТИЧЕСКИЙ ТЕРМИНАЛ // НАЖМИТЕ [ESC] ДЛЯ ВОЗВРАТА В БОЙ</div>
+                </div>
+                <div style="font-family: var(--font-mono); font-size: 13px; color: var(--neon-yellow);" id="pauseShipTitle">КОР: ШТУРМОВИК</div>
+            </div>
+
+            <div class="pause-grid">
+                <!-- Левая колонка: Тактическая сводка характеристик -->
+                <div class="pause-col cyber-clip-sm">
+                    <div class="pause-col-title">01 // ХАРАКТЕРИСТИКИ КОРА</div>
+                    <div class="stat-line"><span>ЦЕЛОСТНОСТЬ (HP):</span><span id="pStatHp" style="color: var(--neon-pink);">100 / 100</span></div>
+                    <div class="stat-line"><span>УРОН ЗА СНАРЯД:</span><span id="pStatDmg">24</span></div>
+                    <div class="stat-line"><span>СКОРОСТРЕЛЬНОСТЬ:</span><span id="pStatRate">5.5 / СЕК</span></div>
+                    <div class="stat-line"><span>ЗАЛП (СНАРЯДОВ):</span><span id="pStatProj">1</span></div>
+                    <div class="stat-line"><span>ШАНС / МНОЖ. КРИТА:</span><span id="pStatCrit" style="color: var(--neon-yellow);">15% / x1.5</span></div>
+                    <div class="stat-line"><span>СКОРОСТЬ ПОЛЁТА:</span><span id="pStatSpeed">330</span></div>
+                    <div class="stat-line"><span>ПЕРЕЗАРЯДКА РЫВКА:</span><span id="pStatDash">1.60 СЕК</span></div>
+                    <div class="stat-line"><span>ПРОБОЙ / РИКОШЕТ:</span><span id="pStatPierce">0 / 0</span></div>
+                    <div class="stat-line"><span>НАНО-СИФОН (ЛЕЧЕНИЕ):</span><span id="pStatVamp" style="color: var(--neon-green);">0%</span></div>
+                    <div class="stat-line"><span>ОРБИТАЛЬНЫЕ ДРОНЫ:</span><span id="pStatDrones">0</span></div>
+                </div>
+
+                <!-- Центральная колонка: Статистика текущего забега -->
+                <div class="pause-col cyber-clip-sm">
+                    <div class="pause-col-title">02 // ТЕЛЕМЕТРИЯ ЗАБЕГА</div>
+                    <div class="stat-line"><span>ТЕКУЩАЯ ВОЛНА:</span><span id="pRunWave" style="color: var(--neon-cyan);">1</span></div>
+                    <div class="stat-line"><span>ВРЕМЯ В БОЮ:</span><span id="pRunTime">00:00</span></div>
+                    <div class="stat-line"><span>УНИЧТОЖЕНО ВРАГОВ:</span><span id="pRunKills">0</span></div>
+                    <div class="stat-line"><span>СОБРАНО КРИСТАЛЛОВ:</span><span id="pRunCrystals" style="color: var(--neon-green);">0</span></div>
+                    <div class="stat-line"><span>НАНЕСЕНО УРОНА:</span><span id="pRunDamage">0</span></div>
+                    <div class="stat-line"><span>УРОВЕНЬ СИСТЕМЫ:</span><span id="pRunLevel">1</span></div>
+                    <div class="stat-line"><span>ТЕКУЩИЙ СЧЁТ:</span><span id="pRunScore" style="color: var(--neon-yellow);">0</span></div>
+                    <div class="stat-line"><span>ЛИЧНЫЙ РЕКОРД:</span><span id="pRunBest">0</span></div>
+                </div>
+
+                <!-- Правая колонка: Установленные модули и быстрые настройки -->
+                <div class="pause-col cyber-clip-sm">
+                    <div class="pause-col-title">03 // УСТАНОВЛЕННЫЕ МОДУЛИ</div>
+                    <div class="pause-modules-grid" id="pauseModulesGrid">
+                        <div style="font-size: 12px; color: #64748b; font-family: var(--font-mono);">Модули ещё не установлены</div>
+                    </div>
+
+                    <div class="pause-quick-settings">
+                        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--neon-cyan);">БЫСТРАЯ НАСТРОЙКА</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 12px;">
+                            <span>ГРОМКОСТЬ SFX:</span>
+                            <input type="range" id="pauseSfxSlider" min="0" max="100" value="100" style="width: 110px;">
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 12px;">
+                            <span>ТРЯСКА КАМЕРЫ:</span>
+                            <button class="toggle-btn cyber-clip-sm" id="pauseShakeToggle" style="padding: 3px 10px;">ВКЛ</button>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 12px;">
+                            <span>АВТО-ОГОНЬ:</span>
+                            <button class="toggle-btn off cyber-clip-sm" id="pauseAutoFireToggle" style="padding: 3px 10px;">ВЫКЛ</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="menu-actions">
+                <button class="neon-btn cyber-clip-sm" id="resumeBtn">▶ ПРОДОЛЖИТЬ [ESC]</button>
+                <button class="neon-btn secondary cyber-clip-sm" id="pauseRestartBtn">↻ ПЕРЕЗАПУСТИТЬ</button>
+                <button class="neon-btn danger cyber-clip-sm" id="pauseMainMenuBtn">⌂ В ГЛАВНОЕ МЕНЮ</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay-screen hidden" id="upgradeScreen">
+        <div class="panel cyber-clip">
+            <div class="glitch-title" style="font-size: 32px; color: var(--neon-yellow);">СИНТЕЗ МОДУЛЯ</div>
+            <div class="protocol-sub" style="color: #cbd5e1; margin-bottom: 18px;">ВЫБЕРИТЕ КИБЕРНЕТИЧЕСКОЕ УЛУЧШЕНИЕ</div>
+            <div class="cards-row" id="upgradeCardsContainer"></div>
+        </div>
+    </div>
+
+    <div class="overlay-screen hidden" id="gameOverScreen">
+        <div class="panel cyber-clip">
+            <div class="glitch-title" style="font-size: 36px; text-shadow: 2px 0 var(--neon-red), -2px 0 var(--neon-pink);">СИСТЕМА ОТКЛЮЧЕНА</div>
+            <div class="protocol-sub" id="newRecordBadge" style="color: var(--neon-yellow); display: none; margin-bottom: 10px;">★ УСТАНОВЛЕН НОВЫЙ РЕКОРД АРЕНЫ ★</div>
+
+            <div class="gameover-stats">
+                <div class="stat-box cyber-clip-sm">
+                    <div class="stat-label">ИТОГОВЫЙ СЧЁТ</div>
+                    <div class="stat-val" id="finalScore">0</div>
+                </div>
+                <div class="stat-box cyber-clip-sm">
+                    <div class="stat-label">ВОЛНА / ВРЕМЯ</div>
+                    <div class="stat-val" id="finalWaveTime" style="color: var(--neon-pink);">1 / 00:00</div>
+                </div>
+                <div class="stat-box cyber-clip-sm">
+                    <div class="stat-label">УНИЧТОЖЕНО</div>
+                    <div class="stat-val" id="finalKills" style="color: var(--neon-green);">0</div>
+                </div>
+                <div class="stat-box cyber-clip-sm">
+                    <div class="stat-label">НАНЕСЕНО УРОНА</div>
+                    <div class="stat-val" id="finalDamage" style="color: var(--neon-yellow);">0</div>
+                </div>
+            </div>
+
+            <div class="section-heading">СОБРАННЫЕ МОДУЛИ В ЭТОМ ЗАБЕГЕ</div>
+            <div class="pause-modules-grid" id="gameOverModulesGrid" style="max-height: 115px; margin-bottom: 20px; text-align: left;"></div>
+
+            <div class="menu-actions">
+                <button class="neon-btn cyber-clip-sm" id="restartBtn">↻ ИГРАТЬ СНОВА [ENTER]</button>
+                <button class="neon-btn secondary cyber-clip-sm" id="overMainMenuBtn">⌂ В ГЛАВНОЕ МЕНЮ</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="script.js"></script>
+</body>
+</html>
