@@ -6,7 +6,7 @@
     <title>Neon Overdrive — играть бесплатно онлайн в браузере</title>
     <link rel="stylesheet" href="style.css">
     <link rel="canonical" href="https://bogdan5ik.github.io/NEON-OVERDRIVE/">
-    <meta name="description" content="Neon Overdrive — играть бесплатно онлайн в браузере без скачивания. Неоновый киберпанк арена-шутер с прокачкой модулей, боссами и управлением с ПК и телефона.">
+    <meta name="description" content="Neon Overdrive — играть бесплатно онлайн в браузере без скачивания. Неоновый киберпанк арена-шутер с прокачкой модулей, боссами и управлением с ПК.">
     <meta name="keywords" content="Neon Overdrive, neon overdrive играть бесплатно, киберпанк игра, браузерный шутер, играть онлайн">
     <meta property="og:site_name" content="Neon Overdrive">
     <meta property="og:title" content="Neon Overdrive — играть бесплатно онлайн в браузере">
@@ -75,6 +75,7 @@
                 <div class="boss-warning cyber-clip-sm" id="bossWarning">⚠ ОБНАРУЖЕН КИБЕР-БОСС ⚠</div>
             </div>
 
+            <!-- Правый блок: Счет, Комбо, Кнопки Паузы и Звука -->
             <div class="hud-top-right">
                 <div class="score-panel cyber-clip-sm">
                     <div class="score-value" id="scoreText">0</div>
@@ -92,7 +93,9 @@
             </div>
         </div>
 
+        <!-- Нижняя панель -->
         <div class="hud-bottom">
+            <!-- Левый нижний блок: Фазовый рывок и класс корабля -->
             <div class="hud-bottom-left cyber-clip-sm">
                 <div class="hud-bar-header">
                     <span style="color: var(--neon-cyan);">ФАЗОВЫЙ РЫВОК [SHIFT/ПКМ]</span>
@@ -107,31 +110,13 @@
                 </div>
             </div>
 
+            <!-- Центр снизу: Активные модули -->
             <div class="hud-modules-bar" id="hudModulesBar"></div>
 
+            <!-- Правый нижний блок: Мини-радар -->
             <div class="radar-box cyber-clip-sm">
                 <canvas id="radarCanvas" width="112" height="112"></canvas>
                 <div class="radar-label">ТАКТ-РАДАР</div>
-            </div>
-        </div>
-
-        <!-- Сенсорное управление для телефонов и планшетов -->
-        <div id="touchControls">
-            <div class="stick-zone" id="moveStickZone">
-                <div class="stick-base">
-                    <div class="stick-knob" id="moveStickKnob"></div>
-                </div>
-                <div class="stick-hint">ДВИЖЕНИЕ</div>
-            </div>
-
-            <div class="touch-right-cluster">
-                <button type="button" class="touch-dash-btn cyber-clip-sm" id="touchDashBtn">РЫВОК</button>
-                <div class="stick-zone" id="aimStickZone">
-                    <div class="stick-base aim-base">
-                        <div class="stick-knob aim-knob" id="aimStickKnob"></div>
-                    </div>
-                    <div class="stick-hint">ОГОНЬ / ПРИЦЕЛ</div>
-                </div>
             </div>
         </div>
     </div>
@@ -231,6 +216,7 @@
             </div>
 
             <div class="pause-grid">
+                <!-- Левая колонка: Тактическая сводка характеристик -->
                 <div class="pause-col cyber-clip-sm">
                     <div class="pause-col-title">01 // ХАРАКТЕРИСТИКИ КОРА</div>
                     <div class="stat-line"><span>ЦЕЛОСТНОСТЬ (HP):</span><span id="pStatHp" style="color: var(--neon-pink);">100 / 100</span></div>
@@ -245,6 +231,7 @@
                     <div class="stat-line"><span>ОРБИТАЛЬНЫЕ ДРОНЫ:</span><span id="pStatDrones">0</span></div>
                 </div>
 
+                <!-- Центральная колонка: Статистика текущего забега -->
                 <div class="pause-col cyber-clip-sm">
                     <div class="pause-col-title">02 // ТЕЛЕМЕТРИЯ ЗАБЕГА</div>
                     <div class="stat-line"><span>ТЕКУЩАЯ ВОЛНА:</span><span id="pRunWave" style="color: var(--neon-cyan);">1</span></div>
@@ -257,6 +244,7 @@
                     <div class="stat-line"><span>ЛИЧНЫЙ РЕКОРД:</span><span id="pRunBest">0</span></div>
                 </div>
 
+                <!-- Правая колонка: Установленные модули и быстрые настройки -->
                 <div class="pause-col cyber-clip-sm">
                     <div class="pause-col-title">03 // УСТАНОВЛЕННЫЕ МОДУЛИ</div>
                     <div class="pause-modules-grid" id="pauseModulesGrid">
@@ -334,6 +322,7 @@
             </div>
         </div>
     </div>
+
 
     <script src="script.js"></script>
 </body>
