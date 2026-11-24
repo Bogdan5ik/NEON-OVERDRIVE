@@ -5,7 +5,8 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             sfxVolume: 1.0,       // 0.0 - 1.0
             shakeMultiplier: 1.0, // 0.0 - 1.5
             autoFire: false,
-            showDamage: true
+            showDamage: true,
+            lowPerfMode: false
         };
 
         let careerStats = {
@@ -28,6 +29,10 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
         function saveCareer() {
             localStorage.setItem(CAREER_KEY, JSON.stringify(careerStats));
             localStorage.setItem('neon_overdrive_best', careerStats.bestScore.toString());
+        }
+
+        function applyPerfModeClass() {
+            document.body.classList.toggle('low-perf', !!userSettings.lowPerfMode);
         }
 
         // --- 2. СИНТЕЗАТОР ЗВУКОВ (WEB AUDIO API) ---
@@ -431,17 +436,19 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
 
         let width = window.innerWidth;
         let height = window.innerHeight;
-        let dpr = Math.min(window.devicePixelRatio || 1, 2);
+        let dpr = 1;
 
         function resizeCanvas() {
             width = window.innerWidth;
             height = window.innerHeight;
-            dpr = Math.min(window.devicePixelRatio || 1, 2);
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
+            const maxDpr = userSettings.lowPerfMode ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+            dpr = Math.max(1, maxDpr);
+            canvas.width = Math.floor(width * dpr);
+            canvas.height = Math.floor(height * dpr);
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
         window.addEventListener('resize', resizeCanvas);
+        applyPerfModeClass();
         resizeCanvas();
 
         // --- 6. СОСТОЯНИЕ ИГРЫ ---
@@ -462,6 +469,7 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
         let hitStopTimer = 0;
         let bgGridOffset = 0;
         let globalTime = 0;
+        let hudSyncTimer = 0;
 
         let player = null;
         let bullets = [];
@@ -500,23 +508,30 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
 
         function triggerShake(intensity, duration = 0.18) {
             if (userSettings.shakeMultiplier <= 0) return;
-            shakeIntensity = Math.max(shakeIntensity, intensity * userSettings.shakeMultiplier);
+            const scale = userSettings.lowPerfMode ? 0.5 : 1;
+            shakeIntensity = Math.max(shakeIntensity, intensity * userSettings.shakeMultiplier * scale);
             shakeTime = Math.max(shakeTime, duration);
         }
 
         function triggerHitStop(duration = 0.025) {
+            if (userSettings.lowPerfMode) return;
             hitStopTimer = Math.max(hitStopTimer, duration);
         }
 
         function spawnFloatingText(x, y, text, color = '#ffffff', size = 16) {
             if (!userSettings.showDamage && !isNaN(parseInt(text))) return;
+            const maxTexts = userSettings.lowPerfMode ? 14 : 36;
+            if (floatingTexts.length >= maxTexts) floatingTexts.shift();
             floatingTexts.push({
                 x, y, vy: -55, text, color, size, life: 0.75, maxLife: 0.75
             });
         }
 
         function spawnParticles(x, y, color, count = 14, speedMin = 60, speedMax = 280, size = 3.5) {
-            for (let i = 0; i < count; i++) {
+            const actualCount = userSettings.lowPerfMode ? Math.max(2, Math.ceil(count * 0.4)) : count;
+            const maxParticles = userSettings.lowPerfMode ? 60 : 220;
+            for (let i = 0; i < actualCount; i++) {
+                if (particles.length >= maxParticles) particles.shift();
                 const angle = rand(0, Math.PI * 2);
                 const speed = rand(speedMin, speedMax);
                 particles.push({
@@ -533,6 +548,8 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
         }
 
         function spawnShockwave(x, y, maxRadius, color, width = 3) {
+            const maxWaves = userSettings.lowPerfMode ? 4 : 14;
+            if (shockwaves.length >= maxWaves) shockwaves.shift();
             shockwaves.push({
                 x, y, radius: 8, maxRadius, color, width, life: 0.35, maxLife: 0.35
             });
@@ -579,7 +596,7 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 level: 1,
                 xp: 0,
                 xpToNext: 60,
-                installedModules: {}, // { moduleId: count }
+                installedModules: {},
                 trail: []
             };
         }
@@ -713,7 +730,7 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                     hitIds: new Set(),
                     life: 1.6,
                     color: player.color,
-                    trail: []
+                    trail: [{ x: muzzleX, y: muzzleY }]
                 });
             }
 
@@ -833,7 +850,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             combo = 1.0;
             comboTimer = 0;
 
-            // Вспышка полоски HP
             const flash = document.getElementById('hpDamageFlash');
             flash.style.opacity = '0.85';
             setTimeout(() => { flash.style.opacity = '0'; }, 120);
@@ -942,7 +958,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             if (!player) return;
             document.getElementById('pauseShipTitle').textContent = `КОР: ${player.className}`;
 
-            // Левая колонка: Характеристики
             document.getElementById('pStatHp').textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
             document.getElementById('pStatDmg').textContent = Math.round(player.damage);
             document.getElementById('pStatRate').textContent = `${player.fireRate.toFixed(1)} / СЕК`;
@@ -954,7 +969,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             document.getElementById('pStatVamp').textContent = `${Math.round(player.vampChance * 100)}%`;
             document.getElementById('pStatDrones').textContent = player.drones;
 
-            // Центральная колонка: Телеметрия забега
             document.getElementById('pRunWave').textContent = wave;
             document.getElementById('pRunTime').textContent = formatTime(survivalSeconds);
             document.getElementById('pRunKills').textContent = kills;
@@ -964,7 +978,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             document.getElementById('pRunScore').textContent = score.toLocaleString('ru-RU');
             document.getElementById('pRunBest').textContent = Math.max(score, careerStats.bestScore).toLocaleString('ru-RU');
 
-            // Правая колонка: Установленные модули
             const modGrid = document.getElementById('pauseModulesGrid');
             const entries = Object.entries(player.installedModules);
             if (entries.length === 0) {
@@ -993,6 +1006,7 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
         // --- 13. ЗАПУСК, ЗАВЕРШЕНИЕ И ВОЗВРАТ В ГЛАВНОЕ МЕНЮ ---
         function startGame() {
             sound.init();
+            resizeCanvas();
             player = createPlayer();
             bullets = [];
             enemyBullets = [];
@@ -1010,8 +1024,11 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             survivalSeconds = 0;
             combo = 1.0;
             comboTimer = 0;
+            hudSyncTimer = 0;
 
             updateHudModulesBar();
+            updateHUD();
+            renderRadar();
             document.getElementById('hudShipName').textContent = `КОР: ${player.className}`;
             document.getElementById('hudShipName').style.color = player.color;
 
@@ -1054,7 +1071,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             document.getElementById('finalDamage').textContent = totalDamageDealt.toLocaleString('ru-RU');
             document.getElementById('newRecordBadge').style.display = isNewRecord ? 'block' : 'none';
 
-            // Список собранных модулей на экране Game Over
             const goMods = document.getElementById('gameOverModulesGrid');
             const entries = player ? Object.entries(player.installedModules) : [];
             if (entries.length === 0) {
@@ -1164,6 +1180,13 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             document.getElementById('shakeIntensitySlider').value = shakePct;
             document.getElementById('shakeIntensityVal').textContent = `${shakePct}%`;
 
+            const lowPerfBtns = [document.getElementById('lowPerfToggle'), document.getElementById('pauseLowPerfToggle')];
+            lowPerfBtns.forEach(btn => {
+                if (!btn) return;
+                btn.textContent = userSettings.lowPerfMode ? 'ВКЛ' : 'ВЫКЛ';
+                btn.classList.toggle('off', !userSettings.lowPerfMode);
+            });
+
             const pShakeBtn = document.getElementById('pauseShakeToggle');
             const shakeOn = userSettings.shakeMultiplier > 0;
             pShakeBtn.textContent = shakeOn ? 'ВКЛ' : 'ВЫКЛ';
@@ -1208,7 +1231,7 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 if (de.x < 30 || de.x > width - 30) de.vx *= -1;
                 if (de.y < 30 || de.y > height - 30) de.vy *= -1;
             }
-            if (Math.random() < 0.22) {
+            if (!userSettings.lowPerfMode && Math.random() < 0.22) {
                 const colors = ['#00f3ff', '#ff007f', '#b829ff', '#00ff88'];
                 spawnParticles(rand(0, width), rand(0, height), colors[Math.floor(Math.random() * colors.length)], 3, 20, 90, 2.5);
             }
@@ -1230,7 +1253,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 return;
             }
 
-            // На паузе, апгрейде или Game Over логика мира заморожена
             if (gameState !== STATE.PLAYING) return;
 
             if (hitStopTimer > 0) {
@@ -1240,13 +1262,11 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
 
             survivalSeconds += dt;
 
-            // Таймер комбо
             if (comboTimer > 0) {
                 comboTimer -= dt;
                 if (comboTimer <= 0) combo = 1.0;
             }
 
-            // Спавн волн
             if (enemiesToSpawn > 0) {
                 spawnTimer -= dt;
                 if (spawnTimer <= 0) {
@@ -1263,7 +1283,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 }
             }
 
-            // Игрок
             player.angle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
             if (player.invulnTimer > 0) player.invulnTimer -= dt;
             if (player.dashTimer > 0) player.dashTimer = Math.max(0, player.dashTimer - dt);
@@ -1273,8 +1292,10 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 const dashSpeed = player.speed * 3.3;
                 player.x += player.dashDirX * dashSpeed * dt;
                 player.y += player.dashDirY * dashSpeed * dt;
-                if (Math.random() < 0.7) {
+                const lastT = player.trail[player.trail.length - 1];
+                if (!lastT || dist(lastT.x, lastT.y, player.x, player.y) >= 14) {
                     player.trail.push({ x: player.x, y: player.y, angle: player.angle, alpha: 0.65 });
+                    if (player.trail.length > 5) player.trail.shift();
                 }
             } else {
                 let ix = 0, iy = 0;
@@ -1302,18 +1323,16 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             player.y = Math.max(margin, Math.min(height - margin, player.y));
 
             for (let i = player.trail.length - 1; i >= 0; i--) {
-                player.trail[i].alpha -= dt * 3.2;
+                player.trail[i].alpha -= dt * 3.8;
                 if (player.trail[i].alpha <= 0) player.trail.splice(i, 1);
             }
 
-            // Стрельба (ручная или авто-огонь)
             if (player.fireCooldown > 0) player.fireCooldown -= dt;
             if ((mouse.down || userSettings.autoFire) && player.fireCooldown <= 0) {
                 shootPlayerWeapons();
                 player.fireCooldown = 1 / player.fireRate;
             }
 
-            // Орбитальные дроны
             if (player.drones > 0) {
                 player.droneAngle += dt * 3.4;
                 const orbitR = 54;
@@ -1339,15 +1358,18 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 }
             }
 
-            // Пули игрока
+            // Пули игрока (короткий аккуратный след без «палки» при низком FPS)
             for (let i = bullets.length - 1; i >= 0; i--) {
                 const b = bullets[i];
-                b.trail.push({ x: b.x, y: b.y });
-                if (b.trail.length > 6) b.trail.shift();
-
                 b.x += b.vx * dt;
                 b.y += b.vy * dt;
                 b.life -= dt;
+
+                const lastTrail = b.trail[b.trail.length - 1];
+                if (!lastTrail || dist(lastTrail.x, lastTrail.y, b.x, b.y) >= 10) {
+                    b.trail.push({ x: b.x, y: b.y });
+                    if (b.trail.length > 3) b.trail.shift();
+                }
 
                 let bounced = false;
                 if (b.x < b.radius) { b.x = b.radius; b.vx *= -1; bounced = true; }
@@ -1356,6 +1378,7 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 else if (b.y > height - b.radius) { b.y = height - b.radius; b.vy *= -1; bounced = true; }
 
                 if (bounced) {
+                    b.trail = [{ x: b.x, y: b.y }];
                     if (b.bouncesLeft > 0) {
                         b.bouncesLeft--;
                         b.hitIds.clear();
@@ -1523,8 +1546,14 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             }
 
             updateVisualEffects(dt);
-            updateHUD();
-            renderRadar();
+
+            hudSyncTimer += dt;
+            const hudInterval = userSettings.lowPerfMode ? 0.08 : 0.033;
+            if (hudSyncTimer >= hudInterval) {
+                hudSyncTimer = 0;
+                updateHUD();
+                renderRadar();
+            }
         }
 
         function updateVisualEffects(dt) {
@@ -1579,16 +1608,14 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             document.getElementById('comboTimerFill').style.width = `${Math.max(0, (comboTimer / MAX_COMBO_TIME) * 100)}%`;
         }
 
-        // Отрисовка мини-радара
         function renderRadar() {
             if (!player) return;
             const rw = 112, rh = 112;
             const cx = rw / 2, cy = rh / 2;
-            const radarRange = 950; // радиус сканирования в пикселях арены
+            const radarRange = 950;
 
             radarCtx.clearRect(0, 0, rw, rh);
 
-            // Сетка радара
             radarCtx.strokeStyle = 'rgba(0, 243, 255, 0.2)';
             radarCtx.lineWidth = 1;
             radarCtx.beginPath();
@@ -1598,7 +1625,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             radarCtx.arc(cx, cy, 24, 0, Math.PI * 2);
             radarCtx.stroke();
 
-            // Враги на радаре
             for (const e of enemies) {
                 const dx = (e.x - player.x) / radarRange;
                 const dy = (e.y - player.y) / radarRange;
@@ -1615,7 +1641,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 radarCtx.fill();
             }
 
-            // Точка игрока в центре
             radarCtx.fillStyle = '#ffffff';
             radarCtx.beginPath();
             radarCtx.arc(cx, cy, 3, 0, Math.PI * 2);
@@ -1623,7 +1648,7 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
         }
 
         // --- 17. ОТРИСОВКА ГЛАВНОГО CANVAS ---
-        function drawPolygon(x, y, radius, sides, rotation, color, fillAlpha = 0.18, lineWidth = 2.5) {
+        function drawPolygon(x, y, radius, sides, rotation, color, fillAlpha = 0.18, lineWidth = 2.5, glow = 12) {
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(rotation);
@@ -1644,8 +1669,10 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             ctx.globalAlpha = 1;
             ctx.strokeStyle = color;
             ctx.lineWidth = lineWidth;
-            ctx.shadowColor = color;
-            ctx.shadowBlur = 14;
+            if (!userSettings.lowPerfMode && glow > 0) {
+                ctx.shadowColor = color;
+                ctx.shadowBlur = glow;
+            }
             ctx.stroke();
             ctx.restore();
         }
@@ -1654,25 +1681,26 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             ctx.save();
             ctx.strokeStyle = 'rgba(0, 243, 255, 0.065)';
             ctx.lineWidth = 1;
-            const step = 50;
+            const step = userSettings.lowPerfMode ? 80 : 50;
+            const offset = bgGridOffset % step;
 
-            for (let x = bgGridOffset; x < width; x += step) {
-                ctx.beginPath();
+            ctx.beginPath();
+            for (let x = offset; x < width; x += step) {
                 ctx.moveTo(x, 0);
                 ctx.lineTo(x, height);
-                ctx.stroke();
             }
-            for (let y = bgGridOffset; y < height; y += step) {
-                ctx.beginPath();
+            for (let y = offset; y < height; y += step) {
                 ctx.moveTo(0, y);
                 ctx.lineTo(width, y);
-                ctx.stroke();
             }
+            ctx.stroke();
 
             ctx.strokeStyle = 'rgba(0, 243, 255, 0.35)';
             ctx.lineWidth = 3;
-            ctx.shadowColor = '#00f3ff';
-            ctx.shadowBlur = 15;
+            if (!userSettings.lowPerfMode) {
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 12;
+            }
             ctx.strokeRect(2, 2, width - 4, height - 4);
             ctx.restore();
         }
@@ -1688,18 +1716,16 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
 
             drawGrid();
 
-            // В главном меню рисуем демонстрационных врагов на фоне
             if (gameState === STATE.MENU) {
                 for (const de of demoEnemies) {
                     let sides = 4;
                     if (de.shape === 'triangle') sides = 3;
                     else if (de.shape === 'hexagon') sides = 6;
                     else if (de.shape === 'octagon') sides = 8;
-                    drawPolygon(de.x, de.y, de.radius, sides, de.angle, de.color, 0.14, 2);
+                    drawPolygon(de.x, de.y, de.radius, sides, de.angle, de.color, 0.14, 2, 0);
                 }
             }
 
-            // Шоковые волны
             for (const s of shockwaves) {
                 const alpha = Math.max(0, s.life / s.maxLife);
                 ctx.save();
@@ -1708,53 +1734,56 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 ctx.strokeStyle = s.color;
                 ctx.globalAlpha = alpha;
                 ctx.lineWidth = s.width;
-                ctx.shadowColor = s.color;
-                ctx.shadowBlur = 12;
                 ctx.stroke();
                 ctx.restore();
             }
 
-            // Кристаллы опыта
             for (const c of crystals) {
                 const scale = 1 + Math.sin(c.pulse) * 0.2;
-                drawPolygon(c.x, c.y, c.size * scale, 4, c.pulse * 0.5, '#00ff88', 0.45, 1.8);
+                drawPolygon(c.x, c.y, c.size * scale, 4, c.pulse * 0.5, '#00ff88', 0.45, 1.8, 0);
             }
 
-            // Снаряды игрока
+            // Снаряды игрока: короткий хвостик + круглый шар без вытянутой «палки»
             for (const b of bullets) {
-                if (b.trail.length > 1) {
-                    ctx.save();
-                    ctx.beginPath();
-                    for (let i = 0; i < b.trail.length; i++) {
-                        if (i === 0) ctx.moveTo(b.trail[i].x, b.trail[i].y);
-                        else ctx.lineTo(b.trail[i].x, b.trail[i].y);
+                if (b.trail.length > 0) {
+                    const tailStart = b.trail[0];
+                    const dTail = dist(tailStart.x, tailStart.y, b.x, b.y);
+                    if (dTail > 1) {
+                        const maxTailLen = Math.min(26, b.radius * 5.2);
+                        const ratio = Math.min(1, maxTailLen / dTail);
+                        const tx = b.x - (b.x - tailStart.x) * ratio;
+                        const ty = b.y - (b.y - tailStart.y) * ratio;
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(tx, ty);
+                        ctx.lineTo(b.x, b.y);
+                        ctx.strokeStyle = b.color;
+                        ctx.globalAlpha = 0.35;
+                        ctx.lineWidth = b.radius * 1.1;
+                        ctx.lineCap = 'round';
+                        ctx.stroke();
+                        ctx.restore();
                     }
-                    ctx.strokeStyle = b.color;
-                    ctx.globalAlpha = 0.35;
-                    ctx.lineWidth = b.radius * 1.4;
-                    ctx.lineCap = 'round';
-                    ctx.stroke();
-                    ctx.restore();
                 }
 
                 ctx.save();
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
                 ctx.fillStyle = '#ffffff';
-                ctx.shadowColor = b.color;
-                ctx.shadowBlur = 14;
+                if (!userSettings.lowPerfMode) {
+                    ctx.shadowColor = b.color;
+                    ctx.shadowBlur = 10;
+                }
                 ctx.fill();
                 ctx.restore();
             }
 
-            // Вражеские пули
             for (const eb of enemyBullets) {
                 ctx.save();
                 ctx.beginPath();
                 ctx.arc(eb.x, eb.y, eb.radius, 0, Math.PI * 2);
                 ctx.fillStyle = eb.color;
-                ctx.shadowColor = eb.color;
-                ctx.shadowBlur = 12;
                 ctx.fill();
                 ctx.beginPath();
                 ctx.arc(eb.x, eb.y, eb.radius * 0.45, 0, Math.PI * 2);
@@ -1763,7 +1792,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 ctx.restore();
             }
 
-            // Враги
             for (const e of enemies) {
                 const drawColor = e.hitFlash > 0 ? '#ffffff' : e.color;
                 let sides = 4;
@@ -1772,10 +1800,11 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 else if (e.shape === 'hexagon') sides = 6;
                 else if (e.shape === 'octagon' || e.shape === 'boss') sides = 8;
 
-                drawPolygon(e.x, e.y, e.radius, sides, e.angle, drawColor, 0.22, e.type === 'boss' ? 4 : 2.5);
+                const glow = e.type === 'boss' ? 14 : 6;
+                drawPolygon(e.x, e.y, e.radius, sides, e.angle, drawColor, 0.22, e.type === 'boss' ? 4 : 2.5, glow);
 
                 if (e.type === 'boss' || e.type === 'tank') {
-                    drawPolygon(e.x, e.y, e.radius * 0.52, 4, -e.angle * 1.5, drawColor, 0.35, 2);
+                    drawPolygon(e.x, e.y, e.radius * 0.52, 4, -e.angle * 1.5, drawColor, 0.35, 2, 0);
                 }
 
                 if (e.hp < e.maxHp) {
@@ -1791,13 +1820,10 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 }
             }
 
-            // Цепные молнии
             for (const arc of lightningArcs) {
                 ctx.save();
                 ctx.strokeStyle = '#ffe600';
                 ctx.lineWidth = 2.5;
-                ctx.shadowColor = '#ffe600';
-                ctx.shadowBlur = 15;
                 ctx.beginPath();
                 ctx.moveTo(arc.x1, arc.y1);
                 const midX = (arc.x1 + arc.x2) / 2 + rand(-18, 18);
@@ -1808,7 +1834,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 ctx.restore();
             }
 
-            // Игрок
             if (player && (gameState === STATE.PLAYING || gameState === STATE.UPGRADE || gameState === STATE.PAUSED)) {
                 for (const t of player.trail) {
                     drawPlayerShip(t.x, t.y, t.angle, player.color, false, t.alpha);
@@ -1825,26 +1850,22 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                         const a = player.droneAngle + (i * Math.PI * 2) / player.drones;
                         const dx = player.x + Math.cos(a) * orbitR;
                         const dy = player.y + Math.sin(a) * orbitR;
-                        drawPolygon(dx, dy, 8, 3, a * 2, '#00ff88', 0.5, 2);
+                        drawPolygon(dx, dy, 8, 3, a * 2, '#00ff88', 0.5, 2, 0);
                     }
                 }
             }
 
-            // Частицы
             for (const p of particles) {
                 const alpha = Math.max(0, p.life / p.maxLife);
                 ctx.save();
                 ctx.globalAlpha = alpha;
                 ctx.fillStyle = p.color;
-                ctx.shadowColor = p.color;
-                ctx.shadowBlur = 10;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
             }
 
-            // Всплывающий текст
             for (const ft of floatingTexts) {
                 const alpha = Math.max(0, ft.life / ft.maxLife);
                 ctx.save();
@@ -1852,8 +1873,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
                 ctx.font = `700 ${ft.size}px var(--font-mono)`;
                 ctx.fillStyle = ft.color;
                 ctx.textAlign = 'center';
-                ctx.shadowColor = ft.color;
-                ctx.shadowBlur = 8;
                 ctx.fillText(ft.text, ft.x, ft.y);
                 ctx.restore();
             }
@@ -1881,9 +1900,9 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             ctx.globalAlpha = alpha;
             ctx.strokeStyle = color;
             ctx.lineWidth = 2.6;
-            if (isMain) {
+            if (isMain && !userSettings.lowPerfMode) {
                 ctx.shadowColor = color;
-                ctx.shadowBlur = 16;
+                ctx.shadowBlur = 12;
             }
             ctx.stroke();
 
@@ -1896,12 +1915,151 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
 
             ctx.restore();
         }
+        // --- СЕНСОРНОЕ УПРАВЛЕНИЕ (ТЕЛЕФОНЫ И ПЛАНШЕТЫ) ---
+        const touchState = {
+            moveId: null,
+            moveX: 0,
+            moveY: 0,
+            aimId: null,
+            aimX: 0,
+            aimY: 0
+        };
+
+        const STICK_MAX_RADIUS = 36;
+
+        function setKnobOffset(knobEl, dx, dy) {
+            if (!knobEl) return;
+            knobEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        }
+
+        function updateStickFromTouch(touch, baseEl, knobEl, isAim) {
+            const rect = baseEl.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            let dx = touch.clientX - cx;
+            let dy = touch.clientY - cy;
+            const len = Math.hypot(dx, dy);
+
+            if (len > STICK_MAX_RADIUS) {
+                dx = (dx / len) * STICK_MAX_RADIUS;
+                dy = (dy / len) * STICK_MAX_RADIUS;
+            }
+
+            setKnobOffset(knobEl, dx, dy);
+            const nx = len > 4 ? dx / STICK_MAX_RADIUS : 0;
+            const ny = len > 4 ? dy / STICK_MAX_RADIUS : 0;
+
+            if (isAim) {
+                touchState.aimX = nx;
+                touchState.aimY = ny;
+            } else {
+                touchState.moveX = nx;
+                touchState.moveY = ny;
+            }
+        }
+
+        function resetMoveStick() {
+            touchState.moveId = null;
+            touchState.moveX = 0;
+            touchState.moveY = 0;
+            setKnobOffset(document.getElementById('moveStickKnob'), 0, 0);
+        }
+
+        function resetAimStick() {
+            touchState.aimId = null;
+            touchState.aimX = 0;
+            touchState.aimY = 0;
+            setKnobOffset(document.getElementById('aimStickKnob'), 0, 0);
+        }
+
+        function initTouchControls() {
+            const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (isTouch) {
+                document.body.classList.add('touch-device');
+            }
+
+            window.addEventListener('touchstart', () => {
+                document.body.classList.add('touch-device');
+                sound.init();
+            }, { passive: true });
+
+            const moveZone = document.getElementById('moveStickZone');
+            const moveBase = moveZone ? moveZone.querySelector('.stick-base') : null;
+            const moveKnob = document.getElementById('moveStickKnob');
+
+            const aimZone = document.getElementById('aimStickZone');
+            const aimBase = aimZone ? aimZone.querySelector('.stick-base') : null;
+            const aimKnob = document.getElementById('aimStickKnob');
+
+            const dashBtn = document.getElementById('touchDashBtn');
+
+            if (moveBase) {
+                moveBase.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    sound.init();
+                    const t = e.changedTouches[0];
+                    touchState.moveId = t.identifier;
+                    updateStickFromTouch(t, moveBase, moveKnob, false);
+                }, { passive: false });
+
+                moveBase.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    for (const t of e.changedTouches) {
+                        if (t.identifier === touchState.moveId) {
+                            updateStickFromTouch(t, moveBase, moveKnob, false);
+                        }
+                    }
+                }, { passive: false });
+
+                moveBase.addEventListener('touchend', (e) => {
+                    for (const t of e.changedTouches) {
+                        if (t.identifier === touchState.moveId) resetMoveStick();
+                    }
+                });
+                moveBase.addEventListener('touchcancel', resetMoveStick);
+            }
+
+            if (aimBase) {
+                aimBase.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    sound.init();
+                    const t = e.changedTouches[0];
+                    touchState.aimId = t.identifier;
+                    updateStickFromTouch(t, aimBase, aimKnob, true);
+                }, { passive: false });
+
+                aimBase.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    for (const t of e.changedTouches) {
+                        if (t.identifier === touchState.aimId) {
+                            updateStickFromTouch(t, aimBase, aimKnob, true);
+                        }
+                    }
+                }, { passive: false });
+
+                aimBase.addEventListener('touchend', (e) => {
+                    for (const t of e.changedTouches) {
+                        if (t.identifier === touchState.aimId) resetAimStick();
+                    }
+                });
+                aimBase.addEventListener('touchcancel', resetAimStick);
+            }
+
+            if (dashBtn) {
+                dashBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    sound.init();
+                    performDash();
+                }, { passive: false });
+            }
+        }
+
+        initTouchControls();
 
         // --- 18. ОБРАБОТЧИКИ СОБЫТИЙ ---
         window.addEventListener('keydown', (e) => {
             keys[e.code] = true;
 
-            // Пауза по нажатию ESC
             if (e.code === 'Escape') {
                 e.preventDefault();
                 if (gameState === STATE.PLAYING || gameState === STATE.PAUSED) {
@@ -1945,7 +2103,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
 
         canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // Кнопки главного меню
         document.getElementById('startBtn').addEventListener('click', startGame);
 
         document.getElementById('openCodexBtn').addEventListener('click', () => {
@@ -1959,13 +2116,13 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             document.getElementById('startScreen').classList.remove('hidden');
         });
 
-        document.getElementById('tabModulesBtn').addEventListener('click', (e) => {
+        document.getElementById('tabModulesBtn').addEventListener('click', () => {
             document.getElementById('tabModulesBtn').classList.add('active');
             document.getElementById('tabEnemiesBtn').classList.remove('active');
             renderCodex('modules');
         });
 
-        document.getElementById('tabEnemiesBtn').addEventListener('click', (e) => {
+        document.getElementById('tabEnemiesBtn').addEventListener('click', () => {
             document.getElementById('tabEnemiesBtn').classList.add('active');
             document.getElementById('tabModulesBtn').classList.remove('active');
             renderCodex('enemies');
@@ -1983,7 +2140,6 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             document.getElementById('startScreen').classList.remove('hidden');
         });
 
-        // Слайдеры и переключатели настроек
         document.getElementById('sfxVolumeSlider').addEventListener('input', (e) => {
             userSettings.sfxVolume = parseInt(e.target.value, 10) / 100;
             sound.updateVolume();
@@ -2003,6 +2159,16 @@ const SETTINGS_KEY = 'neon_overdrive_settings_v2';
             syncSettingsUI();
             saveSettings();
         });
+
+        function toggleLowPerf() {
+            userSettings.lowPerfMode = !userSettings.lowPerfMode;
+            applyPerfModeClass();
+            resizeCanvas();
+            syncSettingsUI();
+            saveSettings();
+        }
+        document.getElementById('lowPerfToggle').addEventListener('click', toggleLowPerf);
+        document.getElementById('pauseLowPerfToggle').addEventListener('click', toggleLowPerf);
 
         document.getElementById('pauseShakeToggle').addEventListener('click', () => {
             userSettings.shakeMultiplier = userSettings.shakeMultiplier > 0 ? 0 : 1.0;

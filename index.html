@@ -5,14 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Neon Overdrive — играть бесплатно онлайн в браузере</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="canonical" href="https://bogdan5ik.github.io/NEON-OVERDRIVE/">
     <meta name="description" content="Neon Overdrive — играть бесплатно онлайн в браузере без скачивания. Неоновый киберпанк арена-шутер с прокачкой модулей, боссами и управлением с ПК и телефона.">
     <meta name="keywords" content="Neon Overdrive, neon overdrive играть бесплатно, киберпанк игра, браузерный шутер, играть онлайн">
     <meta property="og:site_name" content="Neon Overdrive">
     <meta property="og:title" content="Neon Overdrive — играть бесплатно онлайн в браузере">
     <meta property="og:description" content="Неоновый киберпанк арена-шутер с прокачкой модулей, боссами и быстрыми забегами прямо в браузере.">
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://bogdan5ik.github.io/NEON-OVERDRIVE/">
 
-    <link rel="icon" type="image/png" sizes="96x96" href="favicon.png">
+    <link rel="icon" type="image/png" sizes="any" href="favicon.png">
     <link rel="apple-touch-icon" href="favicon.png">
 
     <script type="application/ld+json">
@@ -21,10 +23,9 @@
       "@type": "WebSite",
       "name": "Neon Overdrive",
       "alternateName": "Neon Overdrive — браузерный киберпанк арена-шутер",
-      "url": "https://bogdan5ik.github.io/NEON-OVERDRIVE/"
+      "url": "https://bogdan5ik.github.io/"
     }
     </script>
-
     <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-K756V6NF"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -33,7 +34,10 @@
     </script>
 </head>
 <body>
-
+<section class="sr-only" aria-label="Описание игры">
+        <h1>Neon Overdrive — играть бесплатно в браузерный киберпанк арена-шутер</h1>
+        <p>Играйте в Neon Overdrive бесплатно онлайн без установки и регистрации. Выбирайте класс боевого корабля, прокачивайте кибер-модули, используйте фазовый рывок, сражайтесь с боссами и бейте рекорды по волнам и очкам.</p>
+    </section>
     <div class="vignette"></div>
     <div class="scanlines"></div>
 
@@ -71,7 +75,6 @@
                 <div class="boss-warning cyber-clip-sm" id="bossWarning">⚠ ОБНАРУЖЕН КИБЕР-БОСС ⚠</div>
             </div>
 
-            <!-- Правый блок: Счет, Комбо, Кнопки Паузы и Звука -->
             <div class="hud-top-right">
                 <div class="score-panel cyber-clip-sm">
                     <div class="score-value" id="scoreText">0</div>
@@ -89,9 +92,7 @@
             </div>
         </div>
 
-        <!-- Нижняя панель -->
         <div class="hud-bottom">
-            <!-- Левый нижний блок: Фазовый рывок и класс корабля -->
             <div class="hud-bottom-left cyber-clip-sm">
                 <div class="hud-bar-header">
                     <span style="color: var(--neon-cyan);">ФАЗОВЫЙ РЫВОК [SHIFT/ПКМ]</span>
@@ -106,13 +107,31 @@
                 </div>
             </div>
 
-            <!-- Центр снизу: Активные модули -->
             <div class="hud-modules-bar" id="hudModulesBar"></div>
 
-            <!-- Правый нижний блок: Мини-радар -->
             <div class="radar-box cyber-clip-sm">
                 <canvas id="radarCanvas" width="112" height="112"></canvas>
                 <div class="radar-label">ТАКТ-РАДАР</div>
+            </div>
+        </div>
+
+        <!-- Сенсорное управление для телефонов и планшетов -->
+        <div id="touchControls">
+            <div class="stick-zone" id="moveStickZone">
+                <div class="stick-base">
+                    <div class="stick-knob" id="moveStickKnob"></div>
+                </div>
+                <div class="stick-hint">ДВИЖЕНИЕ</div>
+            </div>
+
+            <div class="touch-right-cluster">
+                <button type="button" class="touch-dash-btn cyber-clip-sm" id="touchDashBtn">РЫВОК</button>
+                <div class="stick-zone" id="aimStickZone">
+                    <div class="stick-base aim-base">
+                        <div class="stick-knob aim-knob" id="aimStickKnob"></div>
+                    </div>
+                    <div class="stick-hint">ОГОНЬ / ПРИЦЕЛ</div>
+                </div>
             </div>
         </div>
     </div>
@@ -183,6 +202,10 @@
                     <input type="range" id="shakeIntensitySlider" min="0" max="150" value="100">
                 </div>
                 <div class="setting-row cyber-clip-sm">
+                    <label>РЕЖИМ СЛАБОГО ПК (+FPS)</label>
+                    <button class="toggle-btn off cyber-clip-sm" id="lowPerfToggle">ВЫКЛ</button>
+                </div>
+                <div class="setting-row cyber-clip-sm">
                     <label>АВТО-СТРЕЛЬБА (БЕЗ ЗАЖАТИЯ ЛКМ)</label>
                     <button class="toggle-btn off cyber-clip-sm" id="autoFireToggle">ВЫКЛ</button>
                 </div>
@@ -208,7 +231,6 @@
             </div>
 
             <div class="pause-grid">
-                <!-- Левая колонка: Тактическая сводка характеристик -->
                 <div class="pause-col cyber-clip-sm">
                     <div class="pause-col-title">01 // ХАРАКТЕРИСТИКИ КОРА</div>
                     <div class="stat-line"><span>ЦЕЛОСТНОСТЬ (HP):</span><span id="pStatHp" style="color: var(--neon-pink);">100 / 100</span></div>
@@ -223,7 +245,6 @@
                     <div class="stat-line"><span>ОРБИТАЛЬНЫЕ ДРОНЫ:</span><span id="pStatDrones">0</span></div>
                 </div>
 
-                <!-- Центральная колонка: Статистика текущего забега -->
                 <div class="pause-col cyber-clip-sm">
                     <div class="pause-col-title">02 // ТЕЛЕМЕТРИЯ ЗАБЕГА</div>
                     <div class="stat-line"><span>ТЕКУЩАЯ ВОЛНА:</span><span id="pRunWave" style="color: var(--neon-cyan);">1</span></div>
@@ -236,7 +257,6 @@
                     <div class="stat-line"><span>ЛИЧНЫЙ РЕКОРД:</span><span id="pRunBest">0</span></div>
                 </div>
 
-                <!-- Правая колонка: Установленные модули и быстрые настройки -->
                 <div class="pause-col cyber-clip-sm">
                     <div class="pause-col-title">03 // УСТАНОВЛЕННЫЕ МОДУЛИ</div>
                     <div class="pause-modules-grid" id="pauseModulesGrid">
@@ -248,6 +268,10 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 12px;">
                             <span>ГРОМКОСТЬ SFX:</span>
                             <input type="range" id="pauseSfxSlider" min="0" max="100" value="100" style="width: 110px;">
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 12px;">
+                            <span>СЛАБЫЙ ПК:</span>
+                            <button class="toggle-btn off cyber-clip-sm" id="pauseLowPerfToggle" style="padding: 3px 10px;">ВЫКЛ</button>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 12px;">
                             <span>ТРЯСКА КАМЕРЫ:</span>
@@ -310,7 +334,6 @@
             </div>
         </div>
     </div>
-
 
     <script src="script.js"></script>
 </body>
